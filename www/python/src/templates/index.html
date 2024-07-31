@@ -39,16 +39,6 @@
       margin-top: 20px;
     }
 
-    .toggle-button {
-      font-size: 14px;
-      margin-left: 10px;
-      cursor: pointer;
-      color: blue;
-      border: none;
-      background: none;
-      padding: 0;
-    }
-
     .btn-toggle {
       margin-left: 10px;
     }
@@ -62,6 +52,16 @@
       margin-left: 10px;
       color: #007bff;
     }
+
+    .top-links {
+      margin: 20px 0;
+      text-align: center;
+    }
+
+    .top-links a {
+      margin: 0 15px;
+      color: #007bff;
+    }
   </style>
 </head>
 
@@ -69,7 +69,18 @@
   <nav class="navbar navbar-expand-lg navbar-dark bg-success">
     <a class="navbar-brand" href="#">WikiConcurso iNaturalist 2024</a>
   </nav>
+
   <div class="container">
+    <!-- Top Links -->
+    <div class="top-links">
+      <a href="https://pt.wikipedia.org/wiki/Wikip%C3%A9dia:WikiConcurso_iNaturalist_no_Brasil_2024" target="_blank">
+        Página do concurso na Wikipédia
+      </a>
+      <a href="https://www.inaturalist.org/projects/wikiconcurso-fotografico-inaturalist-2024" target="_blank">
+        Projeto no iNaturalist
+      </a>
+    </div>
+
     {% from 'card_macro.html' import photo_card %}
 
     <!-- Tabela de Estatísticas por Usuário -->
@@ -83,7 +94,7 @@
           <th>Outras Fotos Válidas</th>
           <th>Data Inválida</th>
           <th>Licença Inválida</th>
-          <th>Não é Grau de Pesquisa</th>
+          <th>Não é Nível de Pesquisa</th>
         </tr>
       </thead>
       <tbody>
@@ -120,7 +131,7 @@
               Observações Validadas
             </button>
             <button class="btn btn-primary btn-sm btn-toggle" data-toggle="collapse"
-              data-target="#collapseValidated-{{ user }}">+ Expandir</button>
+              data-target="#collapseValidated-{{ user }}">- Colapsar</button>
           </h3>
         </div>
         <div id="collapseValidated-{{ user }}" class="collapse show" aria-labelledby="headingValidated-{{ user }}">
@@ -193,8 +204,8 @@
                   iNaturalist, cc-by-nc, infelizmente não é compatível. Confira <a
                     href="https://www.youtube.com/watch?v=zFnJJDTYbJs" target="_blank">este vídeo</a> ou <a
                     href="https://www.inaturalist.org/posts/76329-using-inaturalist-images-on-wikipedia"
-                    target="_blank">este post</a> (ambos em inglês) para mais informações sobre como funcionam as
-                  licenças e como mudá-las.</p>
+                    target="_blank">este post</a> para mais informações sobre como funcionam as licenças e como
+                  mudá-las.</p>
               </div>
               <div class="row">
                 {% for photo in photos.unvalidated['non-compatible-license'] %}
@@ -202,11 +213,11 @@
                 {% endfor %}
               </div>
             </div>
-            <!-- Não é Grau de Pesquisa -->
+            <!-- Não é Nível de Pesquisa -->
             <div class="category" id="non-research-grade-{{ user }}">
               <h2>Não é Nível de Pesquisa</h2>
               <div class="text-muted" style="padding-bottom: 15px;">
-                <p> Estas fotos não obtiveram o status de "Nível de Pesquisa" no iNaturalist, o que significa que não
+                <p> Estas fotos não atingiram o status de "Nível de Pesquisa" no iNaturalist, o que significa que não
                   podem ser adicionadas à Wikipedia
                   com tanta confiança. Identificações ao nível de gênero com 3+ identificadores e sem discordâncias
                   serão
