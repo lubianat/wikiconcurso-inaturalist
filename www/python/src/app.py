@@ -113,10 +113,23 @@ def index():
             category = categorize_photo(observation)
             valid_photos[category].append(observation_data)
         else:
-            for category in validation_categories:
-                unvalidated_photos.setdefault(category, []).append(observation_data)
+            for validation_category in validation_categories:
+                unvalidated_photos.setdefault(validation_category, []).append(
+                    observation_data
+                )
 
     user_photos = organize_photos_by_user(valid_photos, unvalidated_photos)
+
+    for taxon_category in ["vertebrates", "arthropods", "others"]:
+        # Check if number of photos for each author is > 3
+        for user, photos in user_photos.items():
+            if len(photos["validated"][taxon_category]) > 3:
+                user_photos[user]["unvalidated"]["more-than-three"].extend(
+                    photos["validated"][taxon_category][3:]
+                )
+                user_photos[user]["validated"][taxon_category] = photos["validated"][
+                    taxon_category
+                ][:3]
 
     return render_template(
         "index.html",

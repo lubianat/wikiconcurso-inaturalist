@@ -95,6 +95,7 @@
           <th>Data Inválida</th>
           <th>Licença Inválida</th>
           <th>Não é Nível de Pesquisa</th>
+          <th>Imagens em Excesso</th>
         </tr>
       </thead>
       <tbody>
@@ -107,6 +108,7 @@
           <td>{{ photos.unvalidated['date-before-september']|length }}</td>
           <td>{{ photos.unvalidated['non-compatible-license']|length }}</td>
           <td>{{ photos.unvalidated['non-research-grade']|length }}</td>
+          <td>{{ photos.unvalidated['more-than-three']|length }}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -186,7 +188,6 @@
             <div class="category" id="date-before-september-{{ user }}">
               <h2>Data Antes de 1º de Setembro de 2023</h2>
               <div class="text-muted" style="padding-bottom: 15px;">
-
                 <p> As fotos para este concurso devem ter sido tiradas entre 1º de setembro de 2023 e 31 de agosto de
                   2024.</p>
               </div>
@@ -218,11 +219,9 @@
               <h2>Não é Nível de Pesquisa</h2>
               <div class="text-muted" style="padding-bottom: 15px;">
                 <p> Estas fotos não atingiram o status de "Nível de Pesquisa" no iNaturalist, o que significa que não
-                  podem ser adicionadas à Wikipedia
-                  com tanta confiança. Identificações ao nível de gênero com 3+ identificadores e sem discordâncias
-                  serão
-                  excepcionalmente consideradas, pois é frequentemente difícil chegar ao nível de espécie em alguns
-                  organismos.</p>
+                  podem ser adicionadas à Wikipedia com tanta confiança. Identificações ao nível de gênero com 3+
+                  identificadores e sem discordâncias serão excepcionalmente consideradas, pois é frequentemente difícil
+                  chegar ao nível de espécie em alguns organismos.</p>
               </div>
               <div class="row">
                 {% for photo in photos.unvalidated['non-research-grade'] %}
@@ -230,7 +229,21 @@
                 {% endfor %}
               </div>
             </div>
-
+            <!-- Imagens em Excesso -->
+            <div class="category" id="more-than-three-{{ user }}">
+              <h2>Imagens em Excesso</h2>
+              <div class="text-muted" style="padding-bottom: 15px;">
+                <p> Somente as últimas 3 fotos de cada categoria (Vertebrados, Artrópodes, Outros; por ordem de
+                  observação) são consideradas
+                  válidas para este concurso. Estas são as imagens em excesso. Confira para garantir que suas favoritas
+                  estarão entre as avaliadas. </p>
+              </div>
+              <div class="row">
+                {% for photo in photos.unvalidated['more-than-three'] %}
+                {{ photo_card(photo, datetime) }}
+                {% endfor %}
+              </div>
+            </div>
           </div>
         </div>
       </div>
