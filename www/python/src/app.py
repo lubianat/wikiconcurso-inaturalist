@@ -14,14 +14,27 @@ ARTHROPODS = ["Insecta", "Arachnida", "Crustacea", "Myriapoda"]
 
 
 def fetch_project_observations(project_slug):
-    url = f"https://api.inaturalist.org/v1/observations?project_id={project_slug}&per_page=200&order_by=observed_on"
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        return response.json().get("results", [])
-    except requests.exceptions.RequestException as e:
-        app.logger.error(f"Failed to fetch data: {e}")
-        return []
+    per_page = 200
+    page = 1
+    all_results = []
+
+    while True:
+        url = f"https://api.inaturalist.org/v1/observations?project_id={project_slug}&per_page={per_page}&page={page}&order_by=observed_on"
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            results = response.json().get("results", [])
+            if not results:
+                break
+            all_results.extend(results)
+            if len(results) < per_page:
+                break
+            page += 1
+        except requests.exceptions.RequestException as e:
+            app.logger.error(f"Failed to fetch data: {e}")
+            break
+
+    return all_results
 
 
 def is_valid_date(observed_date):
