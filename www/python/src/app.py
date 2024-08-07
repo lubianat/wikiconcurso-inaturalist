@@ -41,7 +41,10 @@ def is_valid_date(observed_date):
     try:
         date = datetime.strptime(observed_date, "%Y-%m-%d")
         return VALID_START_DATE <= date <= VALID_END_DATE
-    except ValueError:
+    # except ValueError or TypeError, handle differently each
+    except (ValueError, TypeError) as e:
+        if e is TypeError:
+            app.logger.error(f"Invalid date format: {observed_date}")
         return False
 
 
