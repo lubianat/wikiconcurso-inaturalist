@@ -1,7 +1,11 @@
-from flask import Flask, render_template, abort
+from flask import Flask, render_template, request, redirect, url_for, session, abort
+from flask_sqlalchemy import SQLAlchemy
 import requests
 from datetime import datetime
 from collections import defaultdict
+import os
+import json
+import hashlib
 
 app = Flask(__name__)
 
@@ -11,6 +15,185 @@ VALID_END_DATE = datetime.strptime("2024-08-31", "%Y-%m-%d")
 
 VERTEBRATES = ["Mammalia", "Aves", "Reptilia", "Amphibia", "Actinopterygii"]
 ARTHROPODS = ["Insecta", "Arachnida", "Crustacea", "Myriapoda"]
+
+app.config["SECRET_KEY"] = "your_secret_key"  # yeah, I know, it's not a secret
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///evaluations.db"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+db = SQLAlchemy(app)
+
+
+class Evaluation(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    inat_username = db.Column(db.String(80), nullable=False)
+    observation_id = db.Column(db.Integer, nullable=False)
+    wikipedia_score = db.Column(db.Integer, nullable=False)
+    science_score = db.Column(db.Integer, nullable=False)
+    photographic_score = db.Column(db.Integer, nullable=False)
+    total_score = db.Column(db.Integer, nullable=False)
+
+    def __init__(
+        self,
+        inat_username,
+        observation_id,
+        wikipedia_score,
+        science_score,
+        photographic_score,
+    ):
+        self.inat_username = inat_username
+        self.observation_id = observation_id
+        self.wikipedia_score = wikipedia_score
+        self.science_score = science_score
+        self.photographic_score = photographic_score
+        self.total_score = wikipedia_score + science_score + photographic_score
+
+
+def validate_observation(observation):
+    """Check if an observation is valid based on date, license, and research grade."""
+    validation_categories = get_validation_categories(observation)
+    return "validated" in validation_categories
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+
+        # Hash the input password
+        hashed_password = hashlib.sha256(password.encode()).hexdigest()
+
+        # The stored hash of the correct password
+        correct_hashed_password = (
+            "4727fbdab27502adbf3a2ade065b30e2095cacb12d58711b596a3755756f8323"
+        )
+
+        if hashed_password == correct_hashed_password:
+            session["username"] = username
+            return redirect(url_for("evaluate"))
+        else:
+            return "Invalid password"
+    return render_template("login.html")
+
+
+@app.route("/logout")
+def logout():
+    session.pop("username", None)
+    if os.path.exists(CACHE_FILE):
+        os.remove(CACHE_FILE)
+    return redirect(url_for("login"))
+
+
+CACHE_FILE = "validated_observations.json"
+
+
+@app.route("/evaluate", methods=["GET", "POST"])
+def evaluate():
+    if "username" not in session:
+        return redirect(url_for("login"))
+
+    if request.method == "POST":
+        observation_id = request.form["observation_id"]
+        wikipedia_score = int(request.form["wikipedia_score"])
+        science_score = int(request.form["science_score"])
+        photographic_score = int(request.form["photographic_score"])
+
+        # Calculate the total score
+        total_score = wikipedia_score + science_score + photographic_score
+
+        # Check if an evaluation already exists
+        evaluation = Evaluation.query.filter_by(
+            inat_username=session["username"], observation_id=observation_id
+        ).first()
+
+        if evaluation:
+            # Update existing evaluation
+            evaluation.wikipedia_score = wikipedia_score
+            evaluation.science_score = science_score
+            evaluation.photographic_score = photographic_score
+        else:
+            # Create a new evaluation if not exists
+            evaluation = Evaluation(
+                inat_username=session["username"],
+                observation_id=observation_id,
+                wikipedia_score=wikipedia_score,
+                science_score=science_score,
+                photographic_score=photographic_score,
+            )
+            db.session.add(evaluation)
+
+        db.session.commit()
+
+        # Redirect to the next observation after submission
+        index = int(request.args.get("index", 0))
+        next_index = (
+            index + 1
+            if index
+            < len(
+                fetch_project_observations("wikiconcurso-fotografico-inaturalist-2024")
+            )
+            - 1
+            else 0
+        )
+        return redirect(url_for("evaluate", index=next_index))
+
+    # Load validated observations from cache if it exists, otherwise fetch and cache them
+    if not os.path.exists(CACHE_FILE):
+        # Fetch observations if cache doesn't exist
+        observations = fetch_project_observations(
+            "wikiconcurso-fotografico-inaturalist-2024"
+        )
+
+        # Filter and prepare validated observations
+        validated_observations = [
+            {
+                "observation_id": obs.get("id", ""),
+                "photo": obs.get("photos", [])[0],
+                "author": obs.get("user", {}).get("login", "Unknown"),
+                "date": obs.get("observed_on", "Unknown"),
+                "license": obs.get("photos", [])[0].get("license_code", ""),
+                "species": obs.get("taxon", {}).get("name", "Unknown"),
+                "taxon_id": obs.get("taxon", {}).get(
+                    "id", None
+                ),  # Include taxon_id if needed later
+            }
+            for obs in observations
+            if validate_observation(obs) and obs.get("photos", [])
+        ]
+
+        # Save the validated observations to a JSON file
+        with open(CACHE_FILE, "w") as f:
+            json.dump(validated_observations, f)
+
+    # Load validated observations from the cache
+    with open(CACHE_FILE, "r") as f:
+        validated_observations = json.load(f)
+
+    total_observations = len(validated_observations)
+
+    # Determine the current index
+    index = int(request.args.get("index", 0))
+    prev_index = index - 1 if index > 0 else -1
+    next_index = index + 1 if index < total_observations - 1 else total_observations
+
+    current_observation = None
+    previous_evaluation = None
+    if 0 <= index < total_observations:
+        current_observation = validated_observations[index]
+        # Retrieve previous evaluation if it exists
+        previous_evaluation = Evaluation.query.filter_by(
+            inat_username=session["username"],
+            observation_id=current_observation["observation_id"],
+        ).first()
+
+    return render_template(
+        "evaluate.html",
+        current_observation=current_observation,
+        prev_index=prev_index,
+        next_index=next_index,
+        total_observations=total_observations,
+        previous_evaluation=previous_evaluation,  # Pass the previous evaluation to the template
+        datetime=datetime,  # Pass datetime for formatting
+    )
 
 
 def fetch_project_observations(project_slug):
@@ -41,9 +224,8 @@ def is_valid_date(observed_date):
     try:
         date = datetime.strptime(observed_date, "%Y-%m-%d")
         return VALID_START_DATE <= date <= VALID_END_DATE
-    # except ValueError or TypeError, handle differently each
     except (ValueError, TypeError) as e:
-        if e is TypeError:
+        if isinstance(e, TypeError):
             app.logger.error(f"Invalid date format: {observed_date}")
         return False
 
@@ -155,4 +337,8 @@ def index():
 
 
 if __name__ == "__main__":
+    # Ensure the database is created from scratch
+    with app.app_context():
+        db.create_all()  # Create all tables based on the models
+
     app.run(debug=True)

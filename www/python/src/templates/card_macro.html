@@ -21,3 +21,26 @@
   </div>
 </div>
 {% endmacro %}
+
+
+{% macro big_photo_card(photo, datetime) %}
+<div class="card photo-card">
+  <img src="{{ photo.photo.url.replace('square', 'large') }}" alt="Foto" class="card-img-top img-fluid">
+  <div class="card-body">
+    <h5 class="card-title">{{ photo.species or "Espécie desconhecida" }}</h5>
+    <p class="card-text">Autor: <a href=" https://www.inaturalist.org/people/{{ photo.author }}"
+        target="_blank">{{ photo.author }}</a></p>
+    <p class="card-text">
+      Data:
+      {% if photo.date %}
+      {{ datetime.fromisoformat(photo.date).strftime('%Y-%m-%d') }}
+      {% else %}
+      Data não disponível
+      {% endif %}
+    </p>
+    <p class="card-text">Licença: {{ photo.license }}</p>
+    <a href="https://www.inaturalist.org/observations/{{ photo.observation_id }}" class="btn btn-primary"
+      target="_blank">Ver Observação</a>
+  </div>
+</div>
+{% endmacro %}
