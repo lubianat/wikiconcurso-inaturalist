@@ -16,134 +16,202 @@
 </head>
 
 <body class="bg-light">
-  <div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <h1 class="h3">Evaluate Photos</h1>
-      <div>
-        <p class="mb-0">Logged in as: <strong>{{ session['username'] }}</strong></p>
-        <a href="{{ url_for('logout') }}" class="btn btn-secondary btn-sm">Logout</a>
-      </div>
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3">Evaluate Photos</h1>
+    <div>
+      <p class="mb-0">Logged in as: <strong>{{ session['username'] }}</strong></p>
+      <a href="{{ url_for('logout') }}" class="btn btn-secondary btn-sm">Logout</a>
+      <a href="{{ url_for('download_evaluations') }}" class="btn btn-primary btn-sm ml-2">Download Results</a>
+    </div>
+  </div>
+  {% if current_observation %}
+  <div class="row">
+    <!-- iNaturalist Photo Card -->
+    <div class="col-md-6">
+      {% from "card_macro.html" import big_photo_card %}
+      {{ big_photo_card(current_observation, datetime) }}
     </div>
 
-    {% if current_observation %}
-    <div class="row">
-      <!-- iNaturalist Photo Card -->
-      <div class="col-md-6">
-        {% from "card_macro.html" import big_photo_card %}
-        {{ big_photo_card(current_observation, datetime) }}
-      </div>
-
-      <!-- Wikipedia Article Card -->
-      <div class="col-md-6">
-        <div class="card shadow-sm mb-4">
-          <div class="card-body">
-            <h5 class="card-title">Wikipedia Article</h5>
-            <iframe class="embed-responsive-item"
-              src="https://pt.wikipedia.org/wiki/{{ current_observation['species'] }}" width="100%" height="800"
-              frameborder="0"></iframe>
-            <p class="mt-3">
-              <a href="https://pt.wikipedia.org/wiki/{{ current_observation['species'] }}" target="_blank"
-                class="btn btn-primary btn-sm">View on Wikipedia</a>
-            </p>
-          </div>
+    <!-- Wikipedia Article Card -->
+    <div class="col-md-6">
+      <div class="card shadow-sm mb-4">
+        <div class="card-body">
+          <h5 class="card-title">Wikipedia Article</h5>
+          <iframe class="embed-responsive-item" src="https://pt.wikipedia.org/wiki/{{ current_observation['species'] }}"
+            width="100%" height="800" frameborder="0"></iframe>
+          <p class="mt-3">
+            <a href="https://pt.wikipedia.org/wiki/{{ current_observation['species'] }}" target="_blank"
+              class="btn btn-primary btn-sm">View on Wikipedia</a>
+          </p>
         </div>
       </div>
     </div>
-    <!-- New Commons Category Card with iframe -->
-    <div class="row">
-      <div class="col-md-12">
-        <div class="card shadow-sm mb-4">
-          <div class="card-body">
-            <h5 class="card-title">Wikimedia Commons Category</h5>
-            <iframe class="embed-responsive-item"
-              src="https://commons.wikimedia.org/wiki/Category:{{ current_observation['species'] }}" width="100%"
-              height="600" frameborder="0"></iframe>
-            <p class="mt-3">
-              <a href="https://commons.wikimedia.org/wiki/Category:{{ current_observation['species'] }}" target="_blank"
-                class="btn btn-primary btn-sm">View on Wikimedia Commons</a>
-            </p>
-          </div>
+  </div>
+  <!-- New Commons Category Card with iframe -->
+  <div class="row">
+    <div class="col-md-12">
+      <div class="card shadow-sm mb-4">
+        <div class="card-body">
+          <h5 class="card-title">Wikimedia Commons Category</h5>
+          <iframe class="embed-responsive-item"
+            src="https://commons.wikimedia.org/wiki/Category:{{ current_observation['species'] }}" width="100%"
+            height="600" frameborder="0"></iframe>
+          <p class="mt-3">
+            <a href="https://commons.wikimedia.org/wiki/Category:{{ current_observation['species'] }}" target="_blank"
+              class="btn btn-primary btn-sm">View on Wikimedia Commons</a>
+          </p>
         </div>
       </div>
     </div>
+  </div>
 
-    <!-- Additional iNaturalist Info -->
-    <div class="row">
-      <div class="col-md-6">
-        <div id="taxon-info" class="card shadow-sm mb-4">
-          <div class="card-body">
-            <h5 class="card-title">Taxon Information</h5>
-            <p id="total-observations">Loading...</p>
-            <p id="conservation-status">Loading...</p>
+  <!-- Additional iNaturalist Info -->
+  <div class="row">
+    <div class="col-md-6">
+      <div id="taxon-info" class="card shadow-sm mb-4">
+        <div class="card-body">
+          <h5 class="card-title">Taxon Information</h5>
+          <p id="total-observations">Loading...</p>
+          <p id="conservation-status">Loading...</p>
 
-            <div id="map"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Score Submission Card -->
-      <div class="col-md-6">
-        <div class="card shadow-sm mb-4">
-          <div class="card-body">
-            <form method="POST">
-              <input type="hidden" name="observation_id" value="{{ current_observation['observation_id'] }}">
-              <p class="text-muted">Nota: a menos que a foto seja excepcional, o uso de marcas d'água deve ser
-                considerado
-                negativamente quando avaliando o reuso e a qualidade da foto.</p>
-
-              <div class="form-group">
-                <p class="text-muted">Há fotos na Wikipédia ou no Commons? A foto é melhor / diferente que as
-                  pré-existentes? Ela
-                  cabe
-                  no artigo representando alguma característica da espécie?</p>
-                <label for="wikipedia_score">Pontuação de Wikipédia (1-5):</label>
-
-                <input type="number" class="form-control" id="wikipedia_score" name="wikipedia_score" min="1" max="5"
-                  value="{{ previous_evaluation.wikipedia_score if previous_evaluation else '' }}" required>
-              </div>
-
-              <div class="form-group">
-                <p class="text-muted">A observação é de uma espécie rara? De um comportamento difícil de capturar? Em
-                  uma localidade nova? De uma fase de vida ou gênero pouco visto?</p>
-                <label for="science_score">Pontuação Científica (1-5):</label>
-
-                <input type="number" class="form-control" id="science_score" name="science_score" min="1" max="5"
-                  value="{{ previous_evaluation.science_score if previous_evaluation else '' }}" required>
-              </div>
-
-              <div class="form-group">
-                <p class="text-muted">A foto é magnífica? Está bem enquadrada? Bem iluminada? Em foco? Conta alguma
-                  história? Dá vontade de imprimir e fazer um quadro?</p>
-                <label for="photographic_score">Pontuação Fotográfica (1-10):</label>
-                <input type="number" class="form-control" id="photographic_score" name="photographic_score" min="1"
-                  max="10" value="{{ previous_evaluation.photographic_score if previous_evaluation else '' }}" required>
-              </div>
-
-              <button type="submit" class="btn btn-success">Submit</button>
-            </form>
-          </div>
-
+          <div id="map"></div>
         </div>
       </div>
     </div>
 
-    <!-- Navigation Buttons -->
-    <div class="d-flex justify-content-between mt-3">
-      {% if prev_index >= 0 %}
-      <a href="{{ url_for('evaluate', index=prev_index) }}" class="btn btn-outline-primary">Previous</a>
-      {% else %}
-      <div></div>
-      {% endif %}
-      {% if next_index < total_observations %}
-      <a href="{{ url_for('evaluate', index=next_index) }}" class="btn btn-outline-primary">Next</a>
-      {% endif %}
+    <!-- Score Submission Card -->
+    <div class="col-md-6">
+      <div class="card shadow-sm mb-4">
+        <div class="card-body">
+          <form method="POST">
+            <input type="hidden" name="observation_id" value="{{ current_observation['observation_id'] }}">
+            <p class="text-muted">Nota: a menos que a foto seja excepcional, o uso de marcas d'água deve ser
+              considerado
+              negativamente quando avaliando o reuso e a qualidade da foto.</p>
+
+            <div class="form-group">
+              <p class="text-muted">Há fotos na Wikipédia ou no Commons? A foto é melhor / diferente que as
+                pré-existentes? Ela
+                cabe
+                no artigo representando alguma característica da espécie?</p>
+              <label for="wikipedia_score">Pontuação de Wikipédia (1-5):</label>
+
+              <input type="number" class="form-control" id="wikipedia_score" name="wikipedia_score" min="1" max="5"
+                value="{{ previous_evaluation.wikipedia_score if previous_evaluation else '' }}" required>
+            </div>
+
+            <div class="form-group">
+              <p class="text-muted">A observação é de uma espécie rara? De um comportamento difícil de capturar? Em
+                uma localidade nova? De uma fase de vida ou gênero pouco visto?</p>
+              <label for="science_score">Pontuação Científica (1-5):</label>
+
+              <input type="number" class="form-control" id="science_score" name="science_score" min="1" max="5"
+                value="{{ previous_evaluation.science_score if previous_evaluation else '' }}" required>
+            </div>
+
+            <div class="form-group">
+              <p class="text-muted">A foto é magnífica? Está bem enquadrada? Bem iluminada? Em foco? Conta alguma
+                história? Dá vontade de imprimir e fazer um quadro?</p>
+              <label for="photographic_score">Pontuação Fotográfica (1-10):</label>
+              <input type="number" class="form-control" id="photographic_score" name="photographic_score" min="1"
+                max="10" value="{{ previous_evaluation.photographic_score if previous_evaluation else '' }}" required>
+            </div>
+
+            <button type="submit" class="btn btn-success">Submit</button>
+          </form>
+        </div>
+
+      </div>
     </div>
+  </div>
+
+  <!-- Navigation Buttons -->
+  <div class="d-flex justify-content-between mt-3">
+    {% if prev_index >= 0 %}
+    <a href="{{ url_for('evaluate', index=prev_index) }}" class="btn btn-outline-primary">Previous</a>
     {% else %}
-    <div class="alert alert-warning" role="alert">
-      No observations available.
-    </div>
+    <div></div>
+    {% endif %}
+    {% if next_index < total_observations %}
+    <a href="{{ url_for('evaluate', index=next_index) }}" class="btn btn-outline-primary">Next</a>
     {% endif %}
   </div>
+  {% else %}
+  <div class="alert alert-warning" role="alert">
+    No observations available.
+  </div>
+  {% endif %}
+  </div>
+  <div class="mt-4">
+    <h5>Observation Progress</h5>
+
+    <!-- Legend -->
+    <div class="mb-3">
+      <h6>Legend:</h6>
+      <div class="d-flex align-items-center mb-2">
+        <div class="box bg-white text-dark text-center mx-1" style="margin-right: 10px;"></div>
+        <span>No one evaluated</span>
+      </div>
+      <div class="d-flex align-items-center mb-2">
+        <div class="box bg-success text-white text-center mx-1" style="margin-right: 10px;"></div>
+        <span>Only you evaluated. </span>
+      </div>
+      <div class="d-flex align-items-center mb-2">
+        <div class="box bg-warning text-dark text-center mx-1" style="margin-right: 10px;"></div>
+        <span>1 evaluation, but not yours</span>
+      </div>
+      <div class="d-flex align-items-center mb-2">
+        <div class="box bg-dark text-dark text-center mx-1" style="margin-right: 10px;"></div>
+        <span>2 or more evaluations, but not yours</span>
+      </div>
+      <div class="d-flex align-items-center mb-2">
+        <div class="box bg-info text-dark text-center mx-1" style="margin-right: 10px;"></div>
+        <span>2 or more evaluations, including yours</span>
+      </div>
+
+    </div>
+
+    <!-- Observation Progress Boxes -->
+    <div class="d-flex flex-wrap">
+      {% for info in evaluations_info %}
+      {% if info.user_evaluated and info.evaluations_count == 1%}
+      <a href="{{ url_for('evaluate', index=info.index) }}"
+        class="box bg-success text-white text-center mx-1">{{ info.index + 1 }}</a>
+      {% elif info.user_evaluated and info.evaluations_count >= 2 %}
+      <a href="{{ url_for('evaluate', index=info.index) }}"
+        class="box bg-info text-dark text-center mx-1">{{ info.index + 1 }}</a>
+      {% elif info.evaluations_count == 0 %}
+      <a href="{{ url_for('evaluate', index=info.index) }}"
+        class="box bg-white text-dark text-center mx-1">{{ info.index + 1 }}</a>
+      {% elif info.evaluations_count == 1 %}
+      <a href="{{ url_for('evaluate', index=info.index) }}"
+        class="box bg-warning text-dark text-center mx-1">{{ info.index + 1 }}</a>
+      {% elif info.evaluations_count >= 2 %}
+      <a href="{{ url_for('evaluate', index=info.index) }}"
+        class="box bg-dark text-dark text-center mx-1">{{ info.index + 1 }}</a>
+      {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <style>
+    .box {
+      width: 30px;
+      height: 30px;
+      line-height: 30px;
+      border: 1px solid #ccc;
+      margin: 2px;
+      font-size: 14px;
+      text-decoration: none;
+      /* Remove underline */
+      display: inline-block;
+    }
+
+    .box:hover {
+      border-color: #007bff;
+      /* Add a hover effect */
+    }
+  </style>
 
   <!-- jQuery -->
   <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>

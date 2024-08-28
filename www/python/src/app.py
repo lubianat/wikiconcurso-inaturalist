@@ -1,4 +1,13 @@
-from flask import Flask, render_template, request, redirect, url_for, session, abort
+from flask import (
+    Flask,
+    render_template,
+    request,
+    redirect,
+    url_for,
+    session,
+    abort,
+    Response,
+)
 from flask_sqlalchemy import SQLAlchemy
 import requests
 from datetime import datetime
@@ -6,6 +15,9 @@ from collections import defaultdict
 import os
 import json
 import hashlib
+import csv
+from io import StringIO
+
 
 app = Flask(__name__)
 
@@ -17,7 +29,9 @@ VERTEBRATES = ["Mammalia", "Aves", "Reptilia", "Amphibia", "Actinopterygii"]
 ARTHROPODS = ["Insecta", "Arachnida", "Crustacea", "Myriapoda"]
 
 app.config["SECRET_KEY"] = "your_secret_key"  # yeah, I know, it's not a secret
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///evaluations.db"
+app.config["SQLALCHEMY_DATABASE_URI"] = (
+    f"sqlite:///{os.path.join(os.getcwd(), 'evaluations.db')}"
+)
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
@@ -51,6 +65,59 @@ def validate_observation(observation):
     """Check if an observation is valid based on date, license, and research grade."""
     validation_categories = get_validation_categories(observation)
     return "validated" in validation_categories
+
+
+@app.route("/download_evaluations", methods=["GET"])
+def download_evaluations():
+    if "username" not in session:
+        return redirect(url_for("login"))
+
+    # Query all evaluations
+    evaluations = Evaluation.query.all()
+
+    # Create a string buffer to hold the TSV data
+    output = StringIO()
+    writer = csv.writer(output, delimiter="\t")
+
+    # Write the header row, including the observation link
+    writer.writerow(
+        [
+            "id",
+            "inat_username",
+            "observation_id",
+            "observation_link",
+            "wikipedia_score",
+            "science_score",
+            "photographic_score",
+            "total_score",
+        ]
+    )
+
+    # Write data rows
+    for evaluation in evaluations:
+        observation_link = (
+            f"https://www.inaturalist.org/observations/{evaluation.observation_id}"
+        )
+        writer.writerow(
+            [
+                evaluation.id,
+                evaluation.inat_username,
+                evaluation.observation_id,
+                observation_link,
+                evaluation.wikipedia_score,
+                evaluation.science_score,
+                evaluation.photographic_score,
+                evaluation.total_score,
+            ]
+        )
+
+    # Create a response with the TSV data
+    output.seek(0)
+    return Response(
+        output,
+        mimetype="text/tab-separated-values",
+        headers={"Content-Disposition": "attachment;filename=evaluations.tsv"},
+    )
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -97,21 +164,17 @@ def evaluate():
         science_score = int(request.form["science_score"])
         photographic_score = int(request.form["photographic_score"])
 
-        # Calculate the total score
         total_score = wikipedia_score + science_score + photographic_score
 
-        # Check if an evaluation already exists
         evaluation = Evaluation.query.filter_by(
             inat_username=session["username"], observation_id=observation_id
         ).first()
 
         if evaluation:
-            # Update existing evaluation
             evaluation.wikipedia_score = wikipedia_score
             evaluation.science_score = science_score
             evaluation.photographic_score = photographic_score
         else:
-            # Create a new evaluation if not exists
             evaluation = Evaluation(
                 inat_username=session["username"],
                 observation_id=observation_id,
@@ -123,27 +186,21 @@ def evaluate():
 
         db.session.commit()
 
-        # Redirect to the next observation after submission
         index = int(request.args.get("index", 0))
-        next_index = (
-            index + 1
-            if index
-            < len(
-                fetch_project_observations("wikiconcurso-fotografico-inaturalist-2024")
-            )
-            - 1
-            else 0
-        )
+
+        with open(CACHE_FILE, "r") as f:
+            validated_observations = json.load(f)
+
+        total_observations = len(validated_observations)
+
+        next_index = index + 1
         return redirect(url_for("evaluate", index=next_index))
 
-    # Load validated observations from cache if it exists, otherwise fetch and cache them
     if not os.path.exists(CACHE_FILE):
-        # Fetch observations if cache doesn't exist
         observations = fetch_project_observations(
             "wikiconcurso-fotografico-inaturalist-2024"
         )
 
-        # Filter and prepare validated observations
         validated_observations = [
             {
                 "observation_id": obs.get("id", ""),
@@ -152,34 +209,49 @@ def evaluate():
                 "date": obs.get("observed_on", "Unknown"),
                 "license": obs.get("photos", [])[0].get("license_code", ""),
                 "species": obs.get("taxon", {}).get("name", "Unknown"),
-                "taxon_id": obs.get("taxon", {}).get(
-                    "id", None
-                ),  # Include taxon_id if needed later
+                "taxon_id": obs.get("taxon", {}).get("id", None),
             }
             for obs in observations
             if validate_observation(obs) and obs.get("photos", [])
         ]
 
-        # Save the validated observations to a JSON file
         with open(CACHE_FILE, "w") as f:
             json.dump(validated_observations, f)
 
-    # Load validated observations from the cache
     with open(CACHE_FILE, "r") as f:
         validated_observations = json.load(f)
 
     total_observations = len(validated_observations)
 
-    # Determine the current index
     index = int(request.args.get("index", 0))
     prev_index = index - 1 if index > 0 else -1
     next_index = index + 1 if index < total_observations - 1 else total_observations
 
     current_observation = None
     previous_evaluation = None
+    evaluations_info = []
+
+    for i, obs in enumerate(validated_observations):
+        evaluations_count = Evaluation.query.filter_by(
+            observation_id=obs["observation_id"]
+        ).count()
+        user_evaluated = (
+            Evaluation.query.filter_by(
+                inat_username=session["username"], observation_id=obs["observation_id"]
+            ).first()
+            is not None
+        )
+
+        evaluations_info.append(
+            {
+                "index": i,
+                "evaluations_count": evaluations_count,
+                "user_evaluated": user_evaluated,
+            }
+        )
+
     if 0 <= index < total_observations:
         current_observation = validated_observations[index]
-        # Retrieve previous evaluation if it exists
         previous_evaluation = Evaluation.query.filter_by(
             inat_username=session["username"],
             observation_id=current_observation["observation_id"],
@@ -191,8 +263,9 @@ def evaluate():
         prev_index=prev_index,
         next_index=next_index,
         total_observations=total_observations,
-        previous_evaluation=previous_evaluation,  # Pass the previous evaluation to the template
-        datetime=datetime,  # Pass datetime for formatting
+        previous_evaluation=previous_evaluation,
+        datetime=datetime,
+        evaluations_info=evaluations_info,  # Pass evaluations info to the template
     )
 
 
