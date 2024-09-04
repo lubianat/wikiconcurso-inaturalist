@@ -325,6 +325,22 @@ def get_validation_categories(observation):
         categories.append("non-compatible-license")
     if observation.get("quality_grade") != "research":
         categories.append("non-research-grade")
+        if (
+            observation.get("quality_grade") == "needs_id"
+            and is_valid_date(observation.get("observed_on", ""))
+            and observation.get("photos")[0].get("license_code", "")
+            in [
+                "cc-by",
+                "cc-by-sa",
+                "cc0",
+            ]
+        ):
+            if (
+                observation.get("num_identification_agreements", 0) >= 2
+                and observation.get("taxon", {}).get("rank", "") == "genus"
+            ):
+                categories.append("validated")
+
     if not categories:
         categories.append("validated")
     return categories
