@@ -12,7 +12,6 @@ from datetime import datetime
 from collections import defaultdict
 import os
 import hashlib
-from tqdm import tqdm
 
 app = Flask(__name__)
 
@@ -158,7 +157,7 @@ def index():
     valid_photos = {"vertebrates": [], "arthropods": [], "others": []}
     unvalidated_photos = {}
 
-    for obs in tqdm(observations):
+    for obs in observations:
         photo = first_photo(obs)
         if photo is None:
             continue  # nothing to show
