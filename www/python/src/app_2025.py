@@ -18,8 +18,8 @@ app = Flask(__name__)
 # ------------------------------------------------------------------
 # Constants
 # ------------------------------------------------------------------
-VALID_START_DATE = datetime.strptime("2026-08-01", "%Y-%m-%d")
-VALID_END_DATE = datetime.strptime("2026-08-31", "%Y-%m-%d")
+VALID_START_DATE = datetime.strptime("2024-09-01", "%Y-%m-%d")
+VALID_END_DATE = datetime.strptime("2025-07-31", "%Y-%m-%d")
 
 VERTEBRATES = ["Mammalia", "Aves", "Reptilia", "Amphibia", "Actinopterygii"]
 ARTHROPODS = ["Insecta", "Arachnida", "Crustacea", "Myriapoda"]
@@ -148,7 +148,7 @@ def fetch_project_observations(project_slug):
 
 @app.route("/")
 def index():
-    project_slug = "wikiconcurso-fotografico-inaturalist-2026"
+    project_slug = "wikiconcurso-fotografico-inaturalist-2025"
     observations = fetch_project_observations(project_slug)
 
     if not observations:
@@ -191,7 +191,7 @@ def index():
                 buckets["validated"][tcat] = validated[:3]
 
     return render_template(
-        "index_2026.html", user_photos=user_photos, datetime=datetime
+        "index_2025.html", user_photos=user_photos, datetime=datetime
     )
 
 
