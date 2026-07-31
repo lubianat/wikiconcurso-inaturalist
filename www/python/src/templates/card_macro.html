@@ -17,30 +17,17 @@
       <p class="card-text">Licença: {{ photo.license }}</p>
       <a href="https://www.inaturalist.org/observations/{{ photo.observation_id }}" class="btn btn-primary"
         target="_blank">Ver Observação</a>
+      <div class="d-flex align-items-center mt-2">
+        <a class="btn btn-outline-success btn-sm"
+           href="https://inat2wiki-dev.toolforge.org/parse/{{ photo.observation_id }}"
+           target="_blank" rel="noopener">Subir ao Commons</a>
+        <span class="ml-2 text-muted" style="cursor: help;"
+              data-toggle="tooltip" data-placement="top"
+              title="Nós iremos carregar as observações Wikimedia Commons após o concurso, mas você pode contribuir diretamente se quiser! Isso é totalmente independente da avaliação.">
+          <i class="fa fa-question-circle" aria-hidden="true"></i>
+        </span>
+      </div>
     </div>
-  </div>
-</div>
-{% endmacro %}
-
-
-{% macro big_photo_card(photo, datetime) %}
-<div class="card photo-card">
-  <img src="{{ photo.photo.url.replace('square', 'large') }}" alt="Foto" class="card-img-top img-fluid">
-  <div class="card-body">
-    <h5 class="card-title">{{ photo.species or "Espécie desconhecida" }}</h5>
-    <p class="card-text">Autor: <a href=" https://www.inaturalist.org/people/{{ photo.author }}"
-        target="_blank">{{ photo.author }}</a></p>
-    <p class="card-text">
-      Data:
-      {% if photo.date %}
-      {{ datetime.fromisoformat(photo.date).strftime('%Y-%m-%d') }}
-      {% else %}
-      Data não disponível
-      {% endif %}
-    </p>
-    <p class="card-text">Licença: {{ photo.license }}</p>
-    <a href="https://www.inaturalist.org/observations/{{ photo.observation_id }}" class="btn btn-primary"
-      target="_blank">Ver Observação</a>
   </div>
 </div>
 {% endmacro %}

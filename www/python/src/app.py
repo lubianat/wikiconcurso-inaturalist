@@ -18,7 +18,7 @@ app = Flask(__name__)
 # ------------------------------------------------------------------
 # Constants
 # ------------------------------------------------------------------
-VALID_START_DATE = datetime.strptime("2026-08-01", "%Y-%m-%d")
+VALID_START_DATE = datetime.strptime("2025-08-01", "%Y-%m-%d")
 VALID_END_DATE = datetime.strptime("2026-08-31", "%Y-%m-%d")
 
 VERTEBRATES = ["Mammalia", "Aves", "Reptilia", "Amphibia", "Actinopterygii"]
