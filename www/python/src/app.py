@@ -146,7 +146,8 @@ def fetch_project_observations(project_slug):
     return all_results
 
 
-PROJECT_SLUG = "wikiconcurso-fotografico-inaturalist-2026"
+YEAR = 2026
+PROJECT_SLUG = f"wikiconcurso-fotografico-inaturalist-{YEAR}"
 
 WDQS_URL = "https://query.wikidata.org/sparql"
 # P3151 = iNaturalist taxon ID
@@ -208,10 +209,9 @@ def stats():
     )
 
 
-@app.route("/")
-def index():
-    project_slug = PROJECT_SLUG
-    observations = fetch_project_observations(project_slug)
+def build_user_photos():
+    """Fetch the project and return the per-user validated/unvalidated buckets."""
+    observations = fetch_project_observations(PROJECT_SLUG)
 
     if not observations:
         abort(500, description="Failed to fetch data from the API")
@@ -252,8 +252,40 @@ def index():
                 buckets["unvalidated"]["more-than-three"].extend(validated[3:])
                 buckets["validated"][tcat] = validated[:3]
 
+    return user_photos
+
+
+@app.route("/")
+def index():
     return render_template(
-        "index_2026.html", user_photos=user_photos, datetime=datetime
+        "index_2026.html", user_photos=build_user_photos(), datetime=datetime
+    )
+
+
+GALLERY_TITLES = {
+    "vertebrates": "Vertebrados",
+    "arthropods": "Artrópodes",
+    "others": "Outros",
+}
+
+
+@app.route("/vertebrates")
+@app.route("/arthropods")
+@app.route("/other")
+def gallery():
+    tcat = {"/other": "others"}.get(request.path, request.path.lstrip("/"))
+    photos = [
+        photo
+        for buckets in build_user_photos().values()
+        for photo in buckets["validated"][tcat]
+    ]
+    photos.sort(key=lambda p: p["date"] or "")
+    return render_template(
+        "gallery.html",
+        title=GALLERY_TITLES[tcat],
+        photos=photos,
+        year=YEAR,
+        datetime=datetime,
     )
 
 
