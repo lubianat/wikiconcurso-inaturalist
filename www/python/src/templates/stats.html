@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <title>Impacto do Wikiconcurso</title>
+</head>
+<body>
+  <h1>Impacto do Wikiconcurso</h1>
+  <p>{{ today.strftime("%Y-%m-%d") }}</p>
+  <ul>
+    <li>Espécies: {{ counts.species }}</li>
+    <li>Com item no Wikidata: {{ counts.with_wikidata }}</li>
+    <li>Sem item no Wikidata: {{ counts.without_wikidata }}</li>
+  </ul>
+  <p>Entre as que têm item no Wikidata:</p>
+  <ul>
+    <li>en.wikipedia.org: {{ counts.en }} com / {{ counts.en_missing }} sem</li>
+    <li>pt.wikipedia.org: {{ counts.pt }} com / {{ counts.pt_missing }} sem</li>
+    <li>Wikimedia Commons: {{ counts.commons }} com / {{ counts.commons_missing }} sem</li>
+  </ul>
+</body>
+</html>

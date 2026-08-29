@@ -146,9 +146,71 @@ def fetch_project_observations(project_slug):
     return all_results
 
 
+PROJECT_SLUG = "wikiconcurso-fotografico-inaturalist-2026"
+
+WDQS_URL = "https://query.wikidata.org/sparql"
+# P3151 = iNaturalist taxon ID
+WDQS_QUERY = """
+SELECT ?inat ?item ?en ?pt ?commons WHERE {
+  VALUES ?inat { %s }
+  ?item wdt:P3151 ?inat .
+  OPTIONAL { ?en schema:about ?item ; schema:isPartOf <https://en.wikipedia.org/> }
+  OPTIONAL { ?pt schema:about ?item ; schema:isPartOf <https://pt.wikipedia.org/> }
+  OPTIONAL { ?commons schema:about ?item ; schema:isPartOf <https://commons.wikimedia.org/> }
+}
+"""
+
+
+def fetch_wikidata_rows(inat_ids):
+    """Ask WDQS which of these iNaturalist taxon IDs have items and sitelinks."""
+    rows = []
+    ids = sorted(inat_ids)
+    for start in range(0, len(ids), 200):  # more than ~200 blows the URL length limit
+        values = " ".join('"%d"' % i for i in ids[start : start + 200])
+        response = requests.get(
+            WDQS_URL,
+            params={"query": WDQS_QUERY % values, "format": "json"},
+            headers={"User-Agent": "wikiconcurso-inaturalist/1.0 (stats page)"},
+            timeout=120,
+        )
+        response.raise_for_status()
+        rows.extend(response.json()["results"]["bindings"])
+    return rows
+
+
+def tally(inat_ids, rows):
+    """Count species with/without Wikidata items, and their sitelinks."""
+    with_item = {r["inat"]["value"] for r in rows}
+    counts = {
+        "species": len(inat_ids),
+        "with_wikidata": len(with_item),
+        "without_wikidata": len(inat_ids) - len(with_item),
+    }
+    for key in ("en", "pt", "commons"):
+        linked = {r["inat"]["value"] for r in rows if key in r}
+        counts[key] = len(linked)
+        counts[key + "_missing"] = len(with_item - linked)
+    return counts
+
+
+@app.route("/stats")
+def stats():
+    inat_ids = {
+        (obs.get("taxon") or {}).get("id")
+        for obs in fetch_project_observations(PROJECT_SLUG)
+        if (obs.get("taxon") or {}).get("rank") == "species"
+    }
+    inat_ids.discard(None)
+    return render_template(
+        "stats.html",
+        counts=tally(inat_ids, fetch_wikidata_rows(inat_ids)),
+        today=datetime.now(),
+    )
+
+
 @app.route("/")
 def index():
-    project_slug = "wikiconcurso-fotografico-inaturalist-2026"
+    project_slug = PROJECT_SLUG
     observations = fetch_project_observations(project_slug)
 
     if not observations:
