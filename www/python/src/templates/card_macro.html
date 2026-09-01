@@ -1,7 +1,7 @@
 {% macro photo_card(photo, datetime) %}
 <div class="col-md-4 mb-4">
   <div class="card photo-card">
-    <img src="{{ photo.photo.url.replace('square', 'medium') }}" alt="Foto">
+    <img src="{{ photo.photo.url.replace('square', 'medium') }}" alt="Foto" loading="lazy">
     <div class="card-body">
       <h5 class="card-title">{{ photo.species or "Espécie desconhecida" }}</h5>
       <p class="card-text">Autor: <a href="https://www.inaturalist.org/people/{{ photo.author }}"

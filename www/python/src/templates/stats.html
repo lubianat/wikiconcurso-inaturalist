@@ -5,6 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Impacto - WikiConcurso iNaturalist {{ year }}</title>
+  <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
   <style>
     body {
       font-family: sans-serif;
@@ -34,19 +35,28 @@
       margin: 30px 0 10px;
     }
 
-    .cards {
+    .tiles {
       display: flex;
       flex-wrap: wrap;
       gap: 15px;
     }
 
-    .card {
+    .tile {
       background: white;
       border: 1px solid #ddd;
       border-radius: 6px;
       padding: 15px;
       min-width: 160px;
       flex: 1;
+    }
+
+    .photo-card {
+      width: 18rem;
+    }
+
+    .photo-card img {
+      height: 200px;
+      object-fit: cover;
     }
 
     .number {
@@ -95,37 +105,38 @@
 
   <main>
     <h2>Participação</h2>
-    <div class="cards">
-      <div class="card">
+    <div class="tiles">
+      <div class="tile">
         <div class="number">{{ counts.observations }}</div>
         <div class="label">Observações enviadas</div>
       </div>
-      <div class="card">
+      <div class="tile">
         <div class="number">{{ counts.users }}</div>
         <div class="label">Participantes</div>
       </div>
-      <div class="card">
+      <div class="tile">
         <div class="number">{{ counts.open_observations }}</div>
         <div class="label">Observações com licença livre</div>
       </div>
-      <div class="card">
+      <div class="tile">
         <div class="number">{{ counts.open_users }}</div>
         <div class="label">Participantes com licença livre</div>
       </div>
     </div>
 
     <h2>Espécies com licença livre</h2>
-    <div class="cards">
-      <div class="card">
+    <div class="tiles">
+      <div class="tile">
         <div class="number">{{ counts.species }}</div>
         <div class="label">Espécies</div>
       </div>
-      <div class="card">
+      <div class="tile">
         <div class="number">{{ counts.with_wikidata }}</div>
         <div class="label">Com item no Wikidata</div>
       </div>
-      <div class="card">
-        <div class="number">{{ counts.without_wikidata }}</div>
+      <div class="tile">
+        <div class="number"><a class="missing" href="#sem" data-bucket="without_wikidata">{{ counts.without_wikidata
+            }}</a></div>
         <div class="label">Sem item no Wikidata</div>
       </div>
     </div>
@@ -140,34 +151,60 @@
         </tr>
       </thead>
       <tbody>
+        {% for key, label in [
+          ('pt', 'Artigo na pt.wikipedia.org'),
+          ('en', 'Artigo na en.wikipedia.org'),
+          ('commons', 'Galeria no Wikimedia Commons'),
+          ('image', 'Imagem no Wikidata (P18)')] %}
         <tr>
-          <td>Artigo na pt.wikipedia.org</td>
-          <td class="n">{{ counts.pt }}</td>
-          <td class="n">{{ counts.pt_missing }}</td>
+          <td>{{ label }}</td>
+          <td class="n">{{ counts[key] }}</td>
+          <td class="n"><a class="missing" href="#sem" data-bucket="{{ key }}_missing">{{ counts[key + '_missing']
+              }}</a></td>
         </tr>
-        <tr>
-          <td>Artigo na en.wikipedia.org</td>
-          <td class="n">{{ counts.en }}</td>
-          <td class="n">{{ counts.en_missing }}</td>
-        </tr>
-        <tr>
-          <td>Galeria no Wikimedia Commons</td>
-          <td class="n">{{ counts.commons }}</td>
-          <td class="n">{{ counts.commons_missing }}</td>
-        </tr>
-        <tr>
-          <td>Imagem no Wikidata (P18)</td>
-          <td class="n">{{ counts.image }}</td>
-          <td class="n">{{ counts.image_missing }}</td>
-        </tr>
+        {% endfor %}
       </tbody>
     </table>
+
+    <p class="label">Clique em qualquer número da coluna "Sem" para ver as espécies correspondentes.</p>
+
+    <div id="sem">
+      {% from 'card_macro.html' import photo_card %}
+      {% for bucket, label in [
+        ('without_wikidata', 'Espécies sem item no Wikidata'),
+        ('pt_missing', 'Espécies sem artigo na pt.wikipedia.org'),
+        ('en_missing', 'Espécies sem artigo na en.wikipedia.org'),
+        ('commons_missing', 'Espécies sem galeria no Wikimedia Commons'),
+        ('image_missing', 'Espécies sem imagem no Wikidata (P18)')] %}
+      <section id="bucket-{{ bucket }}" hidden>
+        <h2>{{ label }} ({{ missing_cards[bucket]|length }})</h2>
+        <div class="row">
+          {% for photo in missing_cards[bucket] %}
+          {{ photo_card(photo, datetime) }}
+          {% endfor %}
+        </div>
+      </section>
+      {% endfor %}
+    </div>
 
     <footer>
       Dados obtidos do iNaturalist e do Wikidata em {{ today.strftime("%Y-%m-%d %H:%M") }}.
       Licenças livres consideradas: cc0, cc-by, cc-by-sa.
     </footer>
   </main>
+
+  <script>
+    // ponytail: all buckets are already in the page; clicking just reveals one.
+    // Images are loading="lazy", so hidden cards cost no downloads.
+    document.querySelectorAll('a.missing').forEach(function (link) {
+      link.addEventListener('click', function () {
+        var target = document.getElementById('bucket-' + link.dataset.bucket);
+        document.querySelectorAll('#sem section').forEach(function (s) {
+          s.hidden = s !== target;
+        });
+      });
+    });
+  </script>
 </body>
 
 </html>

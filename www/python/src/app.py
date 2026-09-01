@@ -94,6 +94,19 @@ def get_validation_categories(observation):
     return categories
 
 
+def make_record(observation, photo, validation_categories=()):
+    """Flatten an observation into the dict the card template expects."""
+    return {
+        "observation_id": observation.get("id") or "",
+        "photo": photo,
+        "author": (observation.get("user") or {}).get("login", "Unknown"),
+        "date": observation.get("observed_on", "Unknown"),
+        "license": photo.get("license_code", ""),
+        "species": (observation.get("taxon") or {}).get("name", "Unknown"),
+        "validation_categories": validation_categories,
+    }
+
+
 def organize_photos_by_user(valid_photos, unvalidated_photos):
     user_photos = defaultdict(
         lambda: {"validated": defaultdict(list), "unvalidated": defaultdict(list)}
@@ -183,18 +196,24 @@ def fetch_wikidata_rows(inat_ids):
 
 
 def tally(inat_ids, rows):
-    """Count species with/without Wikidata items, and their sitelinks."""
-    with_item = {r["inat"]["value"] for r in rows}
+    """Count species with/without Wikidata items and sitelinks.
+
+    Returns (counts, missing), where missing maps each "without" bucket to the
+    set of iNaturalist taxon IDs in it, so the page can list them.
+    """
+    with_item = {int(r["inat"]["value"]) for r in rows}
+    missing = {"without_wikidata": inat_ids - with_item}
     counts = {
         "species": len(inat_ids),
         "with_wikidata": len(with_item),
-        "without_wikidata": len(inat_ids) - len(with_item),
+        "without_wikidata": len(missing["without_wikidata"]),
     }
     for key in ("en", "pt", "commons", "image"):
-        linked = {r["inat"]["value"] for r in rows if key in r}
+        linked = {int(r["inat"]["value"]) for r in rows if key in r}
+        missing[key + "_missing"] = with_item - linked
         counts[key] = len(linked)
-        counts[key + "_missing"] = len(with_item - linked)
-    return counts
+        counts[key + "_missing"] = len(missing[key + "_missing"])
+    return counts, missing
 
 
 @app.route("/stats")
@@ -213,14 +232,32 @@ def stats():
     }
     inat_ids.discard(None)
 
-    counts = tally(inat_ids, fetch_wikidata_rows(inat_ids))
+    counts, missing = tally(inat_ids, fetch_wikidata_rows(inat_ids))
     counts["observations"] = len(observations)
     counts["open_observations"] = len(open_obs)
     counts["users"] = len({(obs.get("user") or {}).get("login") for obs in observations})
     counts["open_users"] = len({(obs.get("user") or {}).get("login") for obs in open_obs})
 
+    # one representative observation per species, to illustrate each "sem" bucket
+    example = {}
+    for obs in open_obs:
+        taxon_id = (obs.get("taxon") or {}).get("id")
+        if taxon_id in inat_ids and taxon_id not in example:
+            example[taxon_id] = make_record(obs, first_photo(obs))
+    missing_cards = {
+        bucket: sorted(
+            (example[i] for i in ids if i in example), key=lambda r: r["species"]
+        )
+        for bucket, ids in missing.items()
+    }
+
     return render_template(
-        "stats.html", counts=counts, year=YEAR, today=datetime.now()
+        "stats.html",
+        counts=counts,
+        missing_cards=missing_cards,
+        year=YEAR,
+        today=datetime.now(),
+        datetime=datetime,
     )
 
 
@@ -241,15 +278,7 @@ def build_user_photos():
 
         validation_categories = get_validation_categories(obs)
 
-        record = {
-            "observation_id": obs.get("id") or "",
-            "photo": photo,
-            "author": (obs.get("user") or {}).get("login", "Unknown"),
-            "date": obs.get("observed_on", "Unknown"),
-            "license": photo.get("license_code", ""),
-            "species": (obs.get("taxon") or {}).get("name", "Unknown"),
-            "validation_categories": validation_categories,
-        }
+        record = make_record(obs, photo, validation_categories)
 
         if "validated" in validation_categories:
             valid_photos[categorize_photo(obs)].append(record)
