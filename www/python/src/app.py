@@ -9,7 +9,8 @@ from flask import (
 )
 import requests
 from datetime import datetime
-from collections import defaultdict
+from collections import defaultdict, Counter
+from urllib.parse import quote
 import os
 import hashlib
 
@@ -250,6 +251,55 @@ def tally(inat_ids, rows):
     return counts, missing
 
 
+QS_QUERY = """
+SELECT ?name ?item ?inat WHERE {
+  VALUES ?name { %s }
+  ?item wdt:P225 ?name .
+  OPTIONAL { ?item wdt:P3151 ?inat }
+}
+"""
+
+
+def quickstatements_for(taxa):
+    """QuickStatements v1 lines adding P3151 to unambiguous taxon-name matches.
+
+    `taxa` maps iNaturalist taxon ID -> scientific name. A pair is used only when
+    the name matches exactly one Wikidata item, that item has no P3151 yet, and
+    no two iNaturalist taxa here share the name.
+    """
+    names = sorted({n for n in taxa.values() if n})
+    items = defaultdict(set)
+    has_inat = set()
+    for start in range(0, len(names), 200):
+        values = " ".join(
+            '"%s"' % n.replace("\\", "").replace('"', "")
+            for n in names[start : start + 200]
+        )
+        response = requests.get(
+            WDQS_URL,
+            params={"query": QS_QUERY % values, "format": "json"},
+            headers={"User-Agent": "wikiconcurso-inaturalist/1.0 (stats page)"},
+            timeout=120,
+        )
+        response.raise_for_status()
+        for row in response.json()["results"]["bindings"]:
+            qid = row["item"]["value"].rsplit("/", 1)[-1]
+            items[row["name"]["value"]].add(qid)
+            if "inat" in row:
+                has_inat.add(qid)
+
+    name_counts = Counter(taxa.values())
+    lines = []
+    for taxon_id, name in sorted(taxa.items()):
+        qids = items.get(name, set())
+        if name_counts[name] > 1 or len(qids) != 1:
+            continue
+        qid = qids.pop()
+        if qid not in has_inat:
+            lines.append(f'{qid}|P3151|"{taxon_id}"')
+    return lines
+
+
 @app.route("/stats")
 def stats():
     observations = fetch_project_observations(PROJECT_SLUG)
@@ -297,10 +347,21 @@ def stats():
         make_record(obs, first_photo(obs)) for obs in not_on_commons
     ]
 
+    # P3151 statements for the species that have no Wikidata item by iNat ID
+    qs_lines = quickstatements_for(
+        {
+            i: example[i]["species"]
+            for i in missing["without_wikidata"]
+            if i in example
+        }
+    )
+
     return render_template(
         "stats.html",
         counts=counts,
         missing_cards=missing_cards,
+        qs_lines=qs_lines,
+        qs_url="https://qs-dev.toolforge.org/batch/new?v1=" + quote("||".join(qs_lines)),
         year=YEAR,
         today=datetime.now(),
         datetime=datetime,

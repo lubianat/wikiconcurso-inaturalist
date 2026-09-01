@@ -147,6 +147,13 @@
         <div class="number"><a class="missing" href="#sem" data-bucket="without_wikidata">{{ counts.without_wikidata
             }}</a></div>
         <div class="label">Sem item no Wikidata</div>
+        {% if qs_lines %}
+        <div class="label">
+          <a href="{{ qs_url }}" target="_blank" rel="noopener">
+            Adicionar P3151 a {{ qs_lines|length }} itens (QuickStatements)
+          </a>
+        </div>
+        {% endif %}
       </div>
     </div>
 
