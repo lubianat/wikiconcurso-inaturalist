@@ -24,6 +24,8 @@ VALID_END_DATE = datetime.strptime("2026-08-31", "%Y-%m-%d")
 VERTEBRATES = ["Mammalia", "Aves", "Reptilia", "Amphibia", "Actinopterygii"]
 ARTHROPODS = ["Insecta", "Arachnida", "Crustacea", "Myriapoda"]
 
+OPEN_LICENSES = {"cc-by", "cc-by-sa", "cc0"}
+
 app.config["SECRET_KEY"] = "your_secret_key"  # change for production!
 CACHE_FILE = "validated_observations.json"
 
@@ -70,7 +72,7 @@ def get_validation_categories(observation):
     if not is_valid_date(observation.get("observed_on")):
         categories.append("date-before-september")
 
-    if photo_obj.get("license_code") not in {"cc-by", "cc-by-sa", "cc0"}:
+    if photo_obj.get("license_code") not in OPEN_LICENSES:
         categories.append("non-compatible-license")
 
     if observation.get("quality_grade") != "research":
@@ -80,7 +82,7 @@ def get_validation_categories(observation):
         if (
             observation.get("quality_grade") == "needs_id"
             and is_valid_date(observation.get("observed_on"))
-            and photo_obj.get("license_code") in {"cc-by", "cc-by-sa", "cc0"}
+            and photo_obj.get("license_code") in OPEN_LICENSES
             and observation.get("num_identification_agreements", 0) >= 2
             and taxon_rank == "genus"
         ):
@@ -152,9 +154,10 @@ PROJECT_SLUG = f"wikiconcurso-fotografico-inaturalist-{YEAR}"
 WDQS_URL = "https://query.wikidata.org/sparql"
 # P3151 = iNaturalist taxon ID
 WDQS_QUERY = """
-SELECT ?inat ?item ?en ?pt ?commons WHERE {
+SELECT ?inat ?item ?en ?pt ?commons ?image WHERE {
   VALUES ?inat { %s }
   ?item wdt:P3151 ?inat .
+  OPTIONAL { ?item wdt:P18 ?image }
   OPTIONAL { ?en schema:about ?item ; schema:isPartOf <https://en.wikipedia.org/> }
   OPTIONAL { ?pt schema:about ?item ; schema:isPartOf <https://pt.wikipedia.org/> }
   OPTIONAL { ?commons schema:about ?item ; schema:isPartOf <https://commons.wikimedia.org/> }
@@ -187,7 +190,7 @@ def tally(inat_ids, rows):
         "with_wikidata": len(with_item),
         "without_wikidata": len(inat_ids) - len(with_item),
     }
-    for key in ("en", "pt", "commons"):
+    for key in ("en", "pt", "commons", "image"):
         linked = {r["inat"]["value"] for r in rows if key in r}
         counts[key] = len(linked)
         counts[key + "_missing"] = len(with_item - linked)
@@ -196,16 +199,28 @@ def tally(inat_ids, rows):
 
 @app.route("/stats")
 def stats():
+    observations = fetch_project_observations(PROJECT_SLUG)
+    open_obs = [
+        obs
+        for obs in observations
+        if (first_photo(obs) or {}).get("license_code") in OPEN_LICENSES
+    ]
+
     inat_ids = {
         (obs.get("taxon") or {}).get("id")
-        for obs in fetch_project_observations(PROJECT_SLUG)
+        for obs in open_obs
         if (obs.get("taxon") or {}).get("rank") == "species"
     }
     inat_ids.discard(None)
+
+    counts = tally(inat_ids, fetch_wikidata_rows(inat_ids))
+    counts["observations"] = len(observations)
+    counts["open_observations"] = len(open_obs)
+    counts["users"] = len({(obs.get("user") or {}).get("login") for obs in observations})
+    counts["open_users"] = len({(obs.get("user") or {}).get("login") for obs in open_obs})
+
     return render_template(
-        "stats.html",
-        counts=tally(inat_ids, fetch_wikidata_rows(inat_ids)),
-        today=datetime.now(),
+        "stats.html", counts=counts, year=YEAR, today=datetime.now()
     )
 
 

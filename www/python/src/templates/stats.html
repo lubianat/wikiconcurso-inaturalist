@@ -1,22 +1,173 @@
 <!doctype html>
 <html lang="pt-br">
+
 <head>
   <meta charset="utf-8">
-  <title>Impacto do Wikiconcurso</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Impacto - WikiConcurso iNaturalist {{ year }}</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      background: #f5f5f5;
+      color: #222;
+    }
+
+    header {
+      background: #28a745;
+      color: white;
+      padding: 15px 20px;
+    }
+
+    header a {
+      color: white;
+    }
+
+    main {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    h2 {
+      font-size: 1.1em;
+      margin: 30px 0 10px;
+    }
+
+    .cards {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+
+    .card {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 15px;
+      min-width: 160px;
+      flex: 1;
+    }
+
+    .number {
+      font-size: 2em;
+      font-weight: bold;
+    }
+
+    .label {
+      color: #666;
+      font-size: 0.9em;
+    }
+
+    table {
+      background: white;
+      border-collapse: collapse;
+      width: 100%;
+    }
+
+    th,
+    td {
+      border: 1px solid #ddd;
+      padding: 8px 10px;
+      text-align: left;
+    }
+
+    th {
+      background: #eee;
+    }
+
+    td.n {
+      text-align: right;
+    }
+
+    footer {
+      color: #666;
+      font-size: 0.85em;
+      margin-top: 30px;
+    }
+  </style>
 </head>
+
 <body>
-  <h1>Impacto do Wikiconcurso</h1>
-  <p>{{ today.strftime("%Y-%m-%d") }}</p>
-  <ul>
-    <li>Espécies: {{ counts.species }}</li>
-    <li>Com item no Wikidata: {{ counts.with_wikidata }}</li>
-    <li>Sem item no Wikidata: {{ counts.without_wikidata }}</li>
-  </ul>
-  <p>Entre as que têm item no Wikidata:</p>
-  <ul>
-    <li>en.wikipedia.org: {{ counts.en }} com / {{ counts.en_missing }} sem</li>
-    <li>pt.wikipedia.org: {{ counts.pt }} com / {{ counts.pt_missing }} sem</li>
-    <li>Wikimedia Commons: {{ counts.commons }} com / {{ counts.commons_missing }} sem</li>
-  </ul>
+  <header>
+    <strong><a href="/">WikiConcurso iNaturalist {{ year }}</a></strong> — Impacto
+  </header>
+
+  <main>
+    <h2>Participação</h2>
+    <div class="cards">
+      <div class="card">
+        <div class="number">{{ counts.observations }}</div>
+        <div class="label">Observações enviadas</div>
+      </div>
+      <div class="card">
+        <div class="number">{{ counts.users }}</div>
+        <div class="label">Participantes</div>
+      </div>
+      <div class="card">
+        <div class="number">{{ counts.open_observations }}</div>
+        <div class="label">Observações com licença livre</div>
+      </div>
+      <div class="card">
+        <div class="number">{{ counts.open_users }}</div>
+        <div class="label">Participantes com licença livre</div>
+      </div>
+    </div>
+
+    <h2>Espécies com licença livre</h2>
+    <div class="cards">
+      <div class="card">
+        <div class="number">{{ counts.species }}</div>
+        <div class="label">Espécies</div>
+      </div>
+      <div class="card">
+        <div class="number">{{ counts.with_wikidata }}</div>
+        <div class="label">Com item no Wikidata</div>
+      </div>
+      <div class="card">
+        <div class="number">{{ counts.without_wikidata }}</div>
+        <div class="label">Sem item no Wikidata</div>
+      </div>
+    </div>
+
+    <h2>Cobertura das espécies com item no Wikidata ({{ counts.with_wikidata }})</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Recurso</th>
+          <th>Com</th>
+          <th>Sem</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Artigo na pt.wikipedia.org</td>
+          <td class="n">{{ counts.pt }}</td>
+          <td class="n">{{ counts.pt_missing }}</td>
+        </tr>
+        <tr>
+          <td>Artigo na en.wikipedia.org</td>
+          <td class="n">{{ counts.en }}</td>
+          <td class="n">{{ counts.en_missing }}</td>
+        </tr>
+        <tr>
+          <td>Galeria no Wikimedia Commons</td>
+          <td class="n">{{ counts.commons }}</td>
+          <td class="n">{{ counts.commons_missing }}</td>
+        </tr>
+        <tr>
+          <td>Imagem no Wikidata (P18)</td>
+          <td class="n">{{ counts.image }}</td>
+          <td class="n">{{ counts.image_missing }}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <footer>
+      Dados obtidos do iNaturalist e do Wikidata em {{ today.strftime("%Y-%m-%d %H:%M") }}.
+      Licenças livres consideradas: cc0, cc-by, cc-by-sa.
+    </footer>
+  </main>
 </body>
+
 </html>
