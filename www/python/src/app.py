@@ -195,6 +195,40 @@ def fetch_wikidata_rows(inat_ids):
     return rows
 
 
+COMMONS_SPARQL_URL = "https://qlever.dev/api/wikimedia-commons"
+# P12120 on Commons files links back to the iNaturalist observation ID (P5683 on Wikidata)
+COMMONS_QUERY = """
+PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+SELECT ?inat_obs_id WHERE {
+  VALUES ?inat_obs_id { %s }
+  ?file wdt:P5683 ?inat_obs_id .
+}
+"""
+
+
+def fetch_observations_on_commons(observation_ids):
+    """Return the subset of observation IDs that already have a file on Commons."""
+    found = set()
+    ids = sorted(observation_ids)
+    for start in range(0, len(ids), 200):
+        values = " ".join('"%s"' % i for i in ids[start : start + 200])
+        response = requests.get(
+            COMMONS_SPARQL_URL,
+            params={"query": COMMONS_QUERY % values},
+            headers={
+                "Accept": "application/sparql-results+json",
+                "User-Agent": "wikiconcurso-inaturalist/1.0 (stats page)",
+            },
+            timeout=120,
+        )
+        response.raise_for_status()
+        found.update(
+            r["inat_obs_id"]["value"]
+            for r in response.json()["results"]["bindings"]
+        )
+    return found
+
+
 def tally(inat_ids, rows):
     """Count species with/without Wikidata items and sitelinks.
 
@@ -238,6 +272,15 @@ def stats():
     counts["users"] = len({(obs.get("user") or {}).get("login") for obs in observations})
     counts["open_users"] = len({(obs.get("user") or {}).get("login") for obs in open_obs})
 
+    on_commons = fetch_observations_on_commons(
+        {str(obs.get("id")) for obs in open_obs}
+    )
+    not_on_commons = [
+        obs for obs in open_obs if str(obs.get("id")) not in on_commons
+    ]
+    counts["on_commons"] = len(open_obs) - len(not_on_commons)
+    counts["not_on_commons"] = len(not_on_commons)
+
     # one representative observation per species, to illustrate each "sem" bucket
     example = {}
     for obs in open_obs:
@@ -250,6 +293,9 @@ def stats():
         )
         for bucket, ids in missing.items()
     }
+    missing_cards["not_on_commons"] = [
+        make_record(obs, first_photo(obs)) for obs in not_on_commons
+    ]
 
     return render_template(
         "stats.html",

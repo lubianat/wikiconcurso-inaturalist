@@ -122,6 +122,15 @@
         <div class="number">{{ counts.open_users }}</div>
         <div class="label">Participantes com licença livre</div>
       </div>
+      <div class="tile">
+        <div class="number">{{ counts.on_commons }}</div>
+        <div class="label">Observações livres já no Commons</div>
+      </div>
+      <div class="tile">
+        <div class="number"><a class="missing" href="#sem" data-bucket="not_on_commons">{{ counts.not_on_commons
+            }}</a></div>
+        <div class="label">Observações livres ainda fora do Commons</div>
+      </div>
     </div>
 
     <h2>Espécies com licença livre</h2>
@@ -175,7 +184,8 @@
         ('pt_missing', 'Espécies sem artigo na pt.wikipedia.org'),
         ('en_missing', 'Espécies sem artigo na en.wikipedia.org'),
         ('commons_missing', 'Espécies sem galeria no Wikimedia Commons'),
-        ('image_missing', 'Espécies sem imagem no Wikidata (P18)')] %}
+        ('image_missing', 'Espécies sem imagem no Wikidata (P18)'),
+        ('not_on_commons', 'Observações com licença livre ainda fora do Commons')] %}
       <section id="bucket-{{ bucket }}" hidden>
         <h2>{{ label }} ({{ missing_cards[bucket]|length }})</h2>
         <div class="row">
